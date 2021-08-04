@@ -3,7 +3,7 @@ The docker network viewer replaces the old `docker-networks.py` (I included it b
 
 ## Get it!
 ```bash
-$ sudo wget -O /usr/local/bin/dnv https://github.com/felbinger/DNV/releases/download/v0.2/dnv -o /dev/null
+$ sudo wget -O /usr/local/bin/dnv https://github.com/felbinger/DNV/releases/download/v0.1/dnv -o /dev/null
 $ sudo chmod +x /usr/local/bin/dnv
 ```
 
