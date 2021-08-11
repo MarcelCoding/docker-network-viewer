@@ -1,0 +1,5 @@
+Package: docker-network-viewer
+Version: 1.0.0-1
+Architecture: amd64
+Maintainer: MarcelCoding <34819524+MarcelCoding@users.noreply.github.com>
+Description: Liste docker networks and according subnet.

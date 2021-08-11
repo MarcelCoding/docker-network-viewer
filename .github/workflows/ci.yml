@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+
+      - name: Build docker-network-viewer
+        run: go build -ldflags "-w -s" -o docker-network-viewer
+
+      - name: Upload docker-network-viewer
+        uses: actions/upload-artifact@v2
+        with:
+          name: docker-network-viewer
+          path: docker-network-viewer
+
+      - name: Build deb
+        run: |
+          mkdir -p deb/usr/local/bin
+
+          cp docker-network-viewer deb/usr/local/bin/docker-network-viewer
+          ln -s deb/usr/local/bin/docker-network-viewer deb/usr/local/bin/dnv
+          chmod -R +x deb/usr/local/bin
+
+          dpkg-deb --build --root-owner-group deb
+
+      - name: Rename deb
+        run: mv deb.deb genpw_$(dpkg-deb -f deb.deb Version)_$(dpkg-deb -f deb.deb Architecture).deb
+
+      - name: Upload deb
+        uses: actions/upload-artifact@v2
+        with:
+          name: debian-docker-network-viewer
+          path: "*.deb"

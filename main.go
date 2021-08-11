@@ -4,107 +4,77 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	"net"
 	"os"
-	"os/exec"
-	"os/user"
 	"sort"
-	"strconv"
-	"strings"
 	"text/tabwriter"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 )
 
-type network struct {
+type Network struct {
 	name  string
 	ipNet *net.IPNet
 }
 
 func main() {
-	grp, err := user.LookupGroup("docker")
-	if err != nil {
-		panic(err)
-	}
-
-	// require docker group or root access
-	if !CheckGroups(*grp) && strings.TrimSpace(GetProcessOwner()) != "root" {
-		fmt.Println("DNV requires docker access!")
-		fmt.Println("Assign yourself the docker group or execute this process as root. Exiting...")
-		os.Exit(1)
-	}
-
-	// create docker client
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		panic(err)
-	}
-
-	// get docker networks
-	networkResources, err := cli.NetworkList(context.Background(), types.NetworkListOptions{})
-	if err != nil {
-		panic(err)
-	}
-
-	// parse networks
-	var networks []network
-	for _, obj := range networkResources {
-		config := obj.IPAM.Config
-
-		if len(config) < 1 {
-			continue
-		}
-		_, ipNet, err := net.ParseCIDR(config[0].Subnet)
-		if err != nil {
-			panic(err)
-		}
-
-		networks = append(networks, network{
-			name:  obj.Name,
-			ipNet: ipNet,
-		})
-	}
+	networks := GetNetworks()
 
 	// sort networks by each octet of the ipv4 address
 	sort.Slice(networks, func(i, j int) bool {
 		return bytes.Compare(networks[i].ipNet.IP, networks[j].ipNet.IP) < 0
 	})
 
-	// write with padding
-	writer := new(tabwriter.Writer)
-	writer.Init(os.Stdout, 2,8, 8, '\t', 0)
-	defer writer.Flush()
-	for _, obj := range networks {
-		_, _ = fmt.Fprintf(writer, "%s\t%s\n", obj.name, obj.ipNet)
-	}
+	PrintNetworks(networks)
 }
 
-// Get the user that started this process
-func GetProcessOwner() string {
-	stdout, err := exec.Command("ps", "-o", "user=", "-p", strconv.Itoa(os.Getpid())).Output()
+func GetNetworks() []Network {
+	docker, err := client.NewClientWithOpts()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	return string(stdout)
+
+	networkList, err := docker.NetworkList(context.Background(), types.NetworkListOptions{})
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	var networks []Network
+
+	for _, network := range networkList {
+		config := network.IPAM.Config
+
+		if len(config) < 1 {
+			continue
+		}
+
+		_, ipNet, err := net.ParseCIDR(config[0].Subnet)
+		if err != nil {
+			panic(err)
+		}
+
+		networks = append(
+			networks,
+			Network{
+				name:  network.Name,
+				ipNet: ipNet,
+			},
+		)
+	}
+
+	return networks
 }
 
-// check if the user that started this process is inside a group (e.g. the docker group)
-func CheckGroups(grp user.Group) bool {
-	usr, err := user.Current()
-	if err != nil {
-		panic(err)
+func PrintNetworks(networks []Network) {
+	writer := new(tabwriter.Writer)
+
+	writer.Init(os.Stdout, 2, 8, 8, '\t', 0)
+	defer writer.Flush()
+
+	for _, network := range networks {
+		fmt.Fprintf(writer, "%s\t%s\n", network.name, network.ipNet)
 	}
-	gids, err := usr.GroupIds()
-	if err != nil {
-		panic(err)
-	}
-	found := false
-	for _, gid := range gids {
-		if gid == grp.Gid {
-			found = true
-			break
-		}
-	}
-	return found
 }
