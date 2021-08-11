@@ -31,7 +31,7 @@ jobs:
           mkdir -p deb/usr/local/bin
 
           cp docker-network-viewer deb/usr/local/bin/docker-network-viewer
-          ln -s deb/usr/local/bin/docker-network-viewer deb/usr/local/bin/dnv
+          ln -s /usr/local/bin/docker-network-viewer deb/usr/local/bin/dnv
           chmod -R +x deb/usr/local/bin
 
           dpkg-deb --build --root-owner-group deb
