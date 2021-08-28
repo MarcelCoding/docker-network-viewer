@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"sort"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/docker/docker/api/types"
@@ -81,6 +82,14 @@ func PrintNetworks(networks []Network) {
 	defer writer.Flush()
 
 	for _, network := range networks {
-		fmt.Fprintf(writer, "%s\t%s\n", network.name, network.ipNet)
+		fmt.Fprintf(writer, "%s\t%s\n", network.name, PrintIpNets(network.ipNet))
 	}
+}
+
+func PrintIpNets(nets []net.IPNet) string {
+	res := make([]string, len(nets))
+	for i := 0; i < len(nets); i++ {
+		res[i] = nets[i].String()
+	}
+	return strings.Join(res, ", ")
 }
