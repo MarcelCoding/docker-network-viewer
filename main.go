@@ -15,7 +15,7 @@ import (
 
 type Network struct {
 	name  string
-	ipNet *net.IPNet
+	ipNet []net.IPNet
 }
 
 func main() {
@@ -23,7 +23,7 @@ func main() {
 
 	// sort networks by each octet of the ipv4 address
 	sort.Slice(networks, func(i, j int) bool {
-		return bytes.Compare(networks[i].ipNet.IP, networks[j].ipNet.IP) < 0
+		return bytes.Compare(networks[i].ipNet[0].IP, networks[j].ipNet[0].IP) < 0
 	})
 
 	PrintNetworks(networks)
@@ -51,16 +51,22 @@ func GetNetworks() []Network {
 			continue
 		}
 
-		_, ipNet, err := net.ParseCIDR(config[0].Subnet)
-		if err != nil {
-			panic(err)
+		var ipNets []net.IPNet
+
+		for _, conf := range config {
+			_, ipNet, err := net.ParseCIDR(conf.Subnet)
+			if err != nil {
+				panic(err)
+			}
+
+			ipNets = append(ipNets, *ipNet)
 		}
 
 		networks = append(
 			networks,
 			Network{
 				name:  network.Name,
-				ipNet: ipNet,
+				ipNet: ipNets,
 			},
 		)
 	}
